@@ -1,0 +1,30 @@
+# systemd user unit. Install:
+#   edit WorkingDirectory below to where you cloned parley, then:
+#   ln -s "$PWD/deploy/parley.service" ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now parley
+# Logs: journalctl --user -u parley -f
+#
+# Runs natively, not in Docker: parley reads ~/.claude, checks session pids and runs `claude`,
+# which needs your login and must start sessions in your real environment (see docs/ARCHITECTURE.md).
+
+[Unit]
+Description=Parley: Discord voice switchboard for Claude Code sessions
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/code/personal/parley
+ExecStart=%h/.local/bin/mise x -- node --env-file-if-exists=.env src/main.ts
+Restart=on-failure
+RestartSec=10
+# `claude --bg` may start Claude Code's background supervisor as our child. Only stop parley
+# itself so a restart doesn't take your background sessions with it; the warm `claude -p`
+# brain processes exit on their own when their stdin closes.
+KillMode=process
+TimeoutStopSec=10
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

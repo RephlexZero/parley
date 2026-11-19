@@ -1,0 +1,41 @@
+# Local speech stack, managed by `npm run stack` (or by hand from this folder):
+#   whisper: whisper.cpp server on the AMD GPU through Vulkan (Mesa RADV, no ROCm needed)
+#   kokoro:  Kokoro-82M text-to-speech on the CPU (OpenAI-style /v1/audio/speech, 24 kHz PCM)
+# Both listen on loopback only.
+#
+# whisper's model is downloaded once into ./models:
+#   docker compose run --rm whisper download-ggml-model.sh large-v3-turbo-q5_0 /models
+#
+# RENDER_GID / VIDEO_GID: `getent group render video` on the host (989 / 985 on this PC).
+
+services:
+  whisper:
+    image: ghcr.io/ggml-org/whisper.cpp:main-vulkan
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:-989}"
+      - "${VIDEO_GID:-985}"
+    volumes:
+      - ./models:/models
+    ports:
+      - "127.0.0.1:8178:8178"
+    command:
+      - whisper-server
+      - --model
+      - /models/ggml-large-v3-turbo-q5_0.bin
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8178"
+      - --language
+      - en
+      - --no-timestamps
+      - --suppress-nst
+
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.10.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8880:8880"

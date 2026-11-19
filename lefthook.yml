@@ -1,0 +1,33 @@
+# Advisory local hooks. pre-commit stays under ~5 s; the slower type-aware checks run on push.
+# CI is the enforcement layer. Installed by `mise run setup`.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: prettier
+      glob: "*.{ts,js,json,md,yml,yaml}"
+      run: mise x -- node_modules/.bin/prettier --check {staged_files}
+    - name: typos
+      run: mise x -- typos {staged_files}
+    - name: gitleaks
+      run: mise x -- gitleaks git --pre-commit --staged --redact --no-banner
+
+commit-msg:
+  jobs:
+    - name: conventional
+      run: |
+        head -n1 {1} | grep -qE '^(feat|fix|docs|chore|refactor|perf|test|build|ci|style|revert|demolition)(\([a-z0-9._-]+\))?!?: .+' || {
+          echo "commit message must follow conventional commits (type(scope): subject)"; exit 1;
+        }
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: typecheck
+      run: mise x -- npm run typecheck
+    - name: lint
+      run: mise x -- npm run lint
+    - name: knip
+      run: mise x -- npm run knip
+    - name: test
+      run: mise x -- npm test

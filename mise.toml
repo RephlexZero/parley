@@ -1,0 +1,15 @@
+# `mise install` provisions tools; `mise run setup` once per clone.
+
+[tools]
+node = "24"
+lefthook = "2"
+typos = "1"
+gitleaks = "8"
+
+[tasks.setup]
+description = "One-time clone setup: dependencies and git hooks"
+run = ["npm ci", "lefthook install"]
+
+[tasks.check]
+description = "Everything CI runs"
+run = ["npm run check", "typos", "gitleaks git --redact --no-banner"]
